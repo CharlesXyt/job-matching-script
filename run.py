@@ -12,31 +12,27 @@ def read_csv_in_chunk(path:str):
     return pd.read_csv(path, chunksize=PANDAS_CHUNK_SIZE)
 
 
-def update_skills(unique_skills: List):
-    db = SQLiteDB(DATABASE_URL)
-    with db.get_session() as session:
-        existed_skills = session.query(SkillModel).filter(SkillModel.name.in_(unique_skills)).all()
+def update_skills(session, unique_skills: List):
+    existed_skills = session.query(SkillModel).filter(SkillModel.name.in_(unique_skills)).all()
 
     existed_skills_set = set(s.name for s in existed_skills)
     new_unique_skills_models = [SkillModel(name=skill_name) 
                                 for skill_name in unique_skills if skill_name not in existed_skills_set]
     
-    with db.get_session() as session:
-        session.bulk_save_objects(new_unique_skills_models)
-        session.commit()
+    session.bulk_save_objects(new_unique_skills_models)
+    session.commit()
 
 
 
-def load_file_into_db(job_file_path:str, seeker_file_path:str):
-    db = SQLiteDB(DATABASE_URL)
+def load_file_into_db(db, job_file_path:str, seeker_file_path:str):
     jobs_df = read_csv_in_chunk(job_file_path)
     seekers_df = read_csv_in_chunk(seeker_file_path)
    
     for chunk in jobs_df:
         chunk[['id', 'title']].to_sql(JobModel.__tablename__, db.engine, if_exists='replace', index=False)
         unique_skills = set(chunk['required_skills'].str.split(',').explode().str.strip())
-        update_skills(unique_skills)
         with db.get_session() as session:
+            update_skills(session, unique_skills)
             for _, row in chunk.iterrows():
                 job_id = row['id']
                 skills = set(s.strip() for s in row['required_skills'].split(','))
@@ -50,8 +46,8 @@ def load_file_into_db(job_file_path:str, seeker_file_path:str):
     for chunk in seekers_df:
         chunk[['id', 'name']].to_sql(JobSeekerModel.__tablename__, db.engine, if_exists='replace', index=False)
         unique_skills = set(chunk['skills'].str.split(',').explode().str.strip())
-        update_skills(unique_skills)
         with db.get_session() as session:
+            update_skills(session, unique_skills)
             for _, row in chunk.iterrows():
                 seeker_id = row['id']
                 skills = set(s.strip() for s in row['skills'].split(','))
@@ -61,8 +57,7 @@ def load_file_into_db(job_file_path:str, seeker_file_path:str):
                     seeker_obj.skills.append(skill_obj)
             session.commit()
 
-def generate_result(use_sql=True):
-    db = SQLiteDB(DATABASE_URL)
+def generate_result(db, use_sql=True):
     if use_sql:
         sql = '''
             select
@@ -101,7 +96,9 @@ def generate_result(use_sql=True):
         sorted_result = sorted(result, key=lambda x: [x["jobseeker_id"], -x["matching_skill_percent"], x["job_id"]])
         df = pd.DataFrame(sorted_result)
 
-    print(df.to_string(index=False))
+    return df
+
+    
 
 
 
@@ -128,10 +125,10 @@ def main():
             print("Error: Please provide two file paths as command-line arguments.")
             print("Usage: python run.py generate <path_to_jobs.csv> <path_to_jobseekers.csv>")
             sys.exit(1)
-
-        load_file_into_db(sys.argv[2], sys.argv[3])
-        generate_result()
-
+        db = SQLiteDB(DATABASE_URL)
+        load_file_into_db(db, sys.argv[2], sys.argv[3])
+        df = generate_result(db)
+        print(df.to_string(index=False))
 
 
 if __name__ == '__main__':
