@@ -11,13 +11,19 @@ This project requires Python to be installed, and it specifically requires a ver
 ## installation and start
 
 ```bash
-    python3.10 -m venv venv
+    python3 -m venv venv
     source venv/bin/activate
     pip install -r requirements.txt
 ```
 
-Example usage with provided csv file
+## Usage
 
+project init
 ```bash
-    python run.py data/jobs.csv data/jobseekers.csv
+    python run.py init
+```
+
+generate result 
+```bash
+    python run.py generate data/jobs.csv data/jobseekers.csv // replace the file path if needed
 ```

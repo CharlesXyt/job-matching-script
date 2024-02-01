@@ -109,17 +109,28 @@ def generate_result(use_sql=True):
 
 
 def main():
-    if len(sys.argv) != 3:
-        print("Error: Please provide two file paths as command-line arguments.")
-        print("Usage: python run.py <path_to_jobs.csv> <path_to_jobseekers.csv>")
+    if len(sys.argv) < 2:
+        print("Usage: python script.py <command>")
         sys.exit(1)
 
-    alembic_cfg = Config(ALEMBIC_CONFIG_FILE)
-    # run db migrations
-    command.upgrade(alembic_cfg, "head")
+    input_command = sys.argv[1]
 
-    load_file_into_db(sys.argv[1], sys.argv[2])
-    generate_result()
+    if input_command not in {'init', 'generate'}:
+        print(f"Unknown command: {input_command}")
+        sys.exit(1)
+
+    if input_command == 'init':
+        alembic_cfg = Config(ALEMBIC_CONFIG_FILE)
+        # run db migrations
+        command.upgrade(alembic_cfg, "head")
+    else:
+        if len(sys.argv) < 3:
+            print("Error: Please provide two file paths as command-line arguments.")
+            print("Usage: python run.py generate <path_to_jobs.csv> <path_to_jobseekers.csv>")
+            sys.exit(1)
+
+        load_file_into_db(sys.argv[2], sys.argv[3])
+        generate_result()
 
 
 
