@@ -27,3 +27,8 @@ generate result
 ```bash
     python run.py generate data/jobs.csv data/jobseekers.csv // replace the file path if needed
 ```
+
+run tests
+```bash
+    pytest
+```

@@ -1,12 +1,9 @@
 import pandas as pd
 import os
 import csv
-from db import SQLiteDB
 from models.models import Base, SkillModel, JobModel, JobSeekerModel
 import pytest
-from run import (
-    DataLoader
-)
+from run import DataLoader
 
 job_test_data = [
     ['id', 'title', 'required_skills'],
@@ -20,6 +17,14 @@ seeker_test_data = [
     [1, 'Alice Seeker', 'Ruby, SQL, Problem Solving'],
     [2, 'Bob Applicant', 'JavaScript, HTML/CSS, Teamwork'],
 ]
+
+'''
+Expected Result should be like
+    jobseeker_id    jobseeker_name     job_id      job_title           matching_skill_count  matching_skill_percent
+        1           Alice Seeker        1        Ruby Developer                 3                   100.0
+        1           Alice Seeker        3        Backend Developer              2                    50.0
+        2           Bob Applicant       2        Frontend Developer             3                    75.0
+'''
 
 
 
@@ -88,8 +93,13 @@ def test_generate_result_sql(in_memory_data_loader, create_dummy_csv):
     job_file, job_seeker_file = create_dummy_csv
     in_memory_data_loader.load_file_into_db(job_file, job_seeker_file)
     df = in_memory_data_loader.generate_result(True)
+    # check result order
+    assert df['jobseeker_id'].to_list() == [1, 1, 2]
+
     alice_ruby_row = df[(df['jobseeker_name'] == 'Alice Seeker') & (df['job_title'] == 'Ruby Developer')]
     alice_backend_row = df[(df['jobseeker_name'] == 'Alice Seeker') & (df['job_title'] == 'Backend Developer')]
+
+    # check percentage
     assert alice_ruby_row['matching_skill_percent'].values[0] == round(3 * 100 / 3, 2)
     assert alice_backend_row['matching_skill_percent'].values[0] == round(2 * 100 / 4, 2)
 
@@ -99,7 +109,11 @@ def test_generate_result_no_sql(in_memory_data_loader, create_dummy_csv):
     job_file, job_seeker_file = create_dummy_csv
     in_memory_data_loader.load_file_into_db(job_file, job_seeker_file)
     df = in_memory_data_loader.generate_result(False)
+    # check result order
+    assert df['jobseeker_id'].to_list() == [1, 1, 2]
     alice_ruby_row = df[(df['jobseeker_name'] == 'Alice Seeker') & (df['job_title'] == 'Ruby Developer')]
     alice_backend_row = df[(df['jobseeker_name'] == 'Alice Seeker') & (df['job_title'] == 'Backend Developer')]
+
+    # check percentage
     assert alice_ruby_row['matching_skill_percent'].values[0] == round(3 * 100 / 3, 2)
     assert alice_backend_row['matching_skill_percent'].values[0] == round(2 * 100 / 4, 2)
